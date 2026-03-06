@@ -8,7 +8,7 @@ App pra assistir MLP feito em Kivy. Puxa os episódios direto do pony.tube sem a
 
 <img src="Imagens/PhoneScale.png" width="30%">
 <img src="Imagens/PhoneScale1.png" width="30%">
-<img src="Imagens/Player.png" width="30%">
+<img src="Imagens/Player.png" width="60%">
 
 </div>
 
