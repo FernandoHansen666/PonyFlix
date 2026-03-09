@@ -20,9 +20,8 @@ Roda no PC e também gera APK pra Android.
 ## Telas
 
 <div align="center">
-
-<img src="Imagens/PhoneScale.png" width="30%">
-<img src="Imagens/PhoneScale1.png" width="30%">
+    
+<img src="Imagens/PhoneScale.png" width="60%">
 <img src="Imagens/Player.png" width="60%">
 
 </div>
