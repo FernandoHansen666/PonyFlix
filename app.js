@@ -41,7 +41,7 @@ function slug(name) {
   return name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
              .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
-function titleCover(title) { return `assets/covers/${slug(title)}.png`; }
+function titleCover(title) { return `assets/covers/${slug(title)}.webp`; }
 function seasonCover(season) {
   const num = season.trim().split(/\s+/).pop();
   return /^\d+$/.test(num) ? `assets/t${num}.png` : null;
@@ -147,18 +147,104 @@ function loadEp(idx) {
   const { title, season, eps } = playerCtx;
   idx = Math.max(0, Math.min(idx, eps.length - 1));
   playerCtx.idx = idx;
-  const [name, url] = eps[idx];
-  $("#videoFrame").src = url;
+  const [name] = eps[idx];
   $("#playerTitle").textContent = name;
   $("#prevEp").disabled = idx === 0;
   $("#nextEp").disabled = idx === eps.length - 1;
   markWatched(title, season, idx + 1);
+
+  if (isCasting()) {
+    // Toca na TV em vez do iframe
+    $("#videoFrame").src = "";
+    castLoadCurrent();
+  } else {
+    $("#castPanel").classList.add("hidden");
+    $("#videoFrame").src = eps[idx][1];
+  }
 }
 function closePlayer() {
   $("#player").classList.add("hidden");
-  $("#videoFrame").src = "";  // para o vídeo
+  $("#videoFrame").src = "";  // para o vídeo (a TV, se estiver transmitindo, segue)
   if (playerCtx) goEpisodes(playerCtx.title, playerCtx.season); // reflete progresso
   playerCtx = null;
+}
+
+// ── Chromecast (Google Cast) ───────────────────────────
+let castContext = null;
+
+function isCasting() {
+  return !!(castContext && castContext.getCurrentSession());
+}
+
+// O SDK chama isto quando cast_sender.js termina de carregar.
+window.__onGCastApiAvailable = function (available) {
+  if (!available || !window.cast || !window.chrome) return;
+  castContext = cast.framework.CastContext.getInstance();
+  castContext.setOptions({
+    receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
+  });
+  castContext.addEventListener(
+    cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+    (e) => {
+      const S = cast.framework.SessionState;
+      if (e.sessionState === S.SESSION_STARTED || e.sessionState === S.SESSION_RESUMED) {
+        if (playerCtx) { $("#videoFrame").src = ""; castLoadCurrent(); }
+      } else if (e.sessionState === S.SESSION_ENDED) {
+        // Voltou pro celular/PC: retoma o iframe do episódio atual
+        $("#castPanel").classList.add("hidden");
+        if (playerCtx) $("#videoFrame").src = playerCtx.eps[playerCtx.idx][1];
+      }
+    }
+  );
+};
+
+// Resolve a URL direta (HLS/MP4) a partir do embed do pony.tube (PeerTube API).
+async function resolveDirectUrl(embedUrl) {
+  const m    = embedUrl.match(/\/embed\/([a-zA-Z0-9\-_]+)/);
+  const host = embedUrl.match(/https?:\/\/([^/]+)/);
+  if (!m || !host) return null;
+  const api = `https://${host[1]}/api/v1/videos/${m[1]}`;
+  const res = await fetch(api);
+  if (!res.ok) throw new Error("API " + res.status);
+  const d = await res.json();
+
+  const resId = (f) => (f.resolution && typeof f.resolution === "object")
+    ? (f.resolution.id || 0) : (f.resolution || 0);
+
+  // 1) MP4 progressivo na maior resolução (top-level ou dentro do HLS)
+  let files = (d.files && d.files.length) ? d.files
+            : (d.streamingPlaylists || []).flatMap((p) => p.files || []);
+  files = files.slice().sort((a, b) => resId(b) - resId(a));
+  const mp4 = files.map((f) => f.fileUrl || f.fileDownloadUrl).find(Boolean);
+  if (mp4) return { url: mp4, type: "video/mp4" };
+
+  // 2) HLS adaptativo
+  const hls = (d.streamingPlaylists || []).map((p) => p.playlistUrl).find(Boolean);
+  if (hls) return { url: hls, type: "application/x-mpegurl" };
+  return null;
+}
+
+async function castLoadCurrent() {
+  const session = castContext && castContext.getCurrentSession();
+  if (!session || !playerCtx) return;
+  const [name, embed] = playerCtx.eps[playerCtx.idx];
+  const panel = $("#castPanel");
+  $("#castEp").textContent = name;
+  $("#castStatus").textContent = "Carregando…";
+  panel.classList.remove("hidden");
+  try {
+    const media = await resolveDirectUrl(embed);
+    if (!media) throw new Error("sem fonte de vídeo");
+    const info = new chrome.cast.media.MediaInfo(media.url, media.type);
+    info.metadata = new chrome.cast.media.GenericMediaMetadata();
+    info.metadata.title = name;
+    await session.loadMedia(new chrome.cast.media.LoadRequest(info));
+    $("#castStatus").textContent = "Reproduzindo na TV";
+  } catch (err) {
+    console.error("[cast]", err);
+    $("#castStatus").textContent = "Não foi possível transmitir este episódio.";
+  }
 }
 
 // ── Header / navegação ─────────────────────────────────

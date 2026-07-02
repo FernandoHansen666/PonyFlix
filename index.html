@@ -43,6 +43,7 @@
     <div class="player-top">
       <button id="playerBack" class="back-btn">&#8249; Voltar</button>
       <span id="playerTitle" class="player-title"></span>
+      <google-cast-launcher id="castBtn" class="cast-btn"></google-cast-launcher>
       <div class="player-nav">
         <button id="prevEp" class="nav-btn">Anterior</button>
         <button id="nextEp" class="nav-btn">Pr&oacute;ximo</button>
@@ -50,10 +51,18 @@
     </div>
     <div class="player-frame">
       <iframe id="videoFrame" allowfullscreen allow="autoplay; fullscreen; encrypted-media" referrerpolicy="no-referrer"></iframe>
+      <div id="castPanel" class="cast-panel hidden">
+        <div class="cast-ico">&#128250;</div>
+        <p class="cast-msg">Transmitindo na TV</p>
+        <p id="castEp" class="cast-ep"></p>
+        <p id="castStatus" class="cast-status"></p>
+      </div>
     </div>
   </div>
 
   <script src="episodios.js"></script>
   <script src="app.js"></script>
+  <!-- Cast SDK por último: app.js já definiu window.__onGCastApiAvailable -->
+  <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
 </body>
 </html>
