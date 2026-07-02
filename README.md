@@ -1,7 +1,7 @@
 <div align="center">
-<<<<<<< HEAD
 
-# 🦄 PonyFlix Web
+
+# PonyFlix
 
 **Sua magia, quando quiser.**
 
