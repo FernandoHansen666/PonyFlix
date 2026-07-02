@@ -8,7 +8,7 @@ Versão web leve do app PonyFlix — HTML, CSS e JavaScript puro. Sem build, sem
 Assiste a todas as temporadas de **My Little Pony** direto do [pony.tube](https://pony.tube), com o mesmo visual roxo/rosa do app original.
 
 ---
-
+<div align="left">
 ## ✨ Funcionalidades
 
 - 🎬 **Streaming direto** dos episódios via embed do pony.tube
