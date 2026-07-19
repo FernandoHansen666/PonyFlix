@@ -19,6 +19,8 @@ let progress = loadProgress();
 const state = { title: null, season: null };
 // contexto do player
 let playerCtx = null;
+// config opcional da página (definida em window.APP_CONFIG antes deste script)
+const CONFIG = window.APP_CONFIG || {};
 
 // ── Progresso ──────────────────────────────────────────
 function loadProgress() {
@@ -45,6 +47,45 @@ function titleCover(title) { return `assets/covers/${slug(title)}.webp`; }
 function seasonCover(season) {
   const num = season.trim().split(/\s+/).pop();
   return /^\d+$/.test(num) ? `assets/t${num}.png` : null;
+}
+
+// ── Capas automáticas (TMDB via meusdoramas) ───────────
+// Extrai o id TMDB e a origem a partir do link do 1º episódio da série.
+function seriesRef(title) {
+  const seasons = DATA[title]; if (!seasons) return null;
+  const firstSeason = Object.values(seasons)[0]; if (!firstSeason) return null;
+  const firstUrl = Object.values(firstSeason)[0]; if (!firstUrl) return null;
+  const m = firstUrl.match(/\/video\/(\d+)\//);
+  try { return m ? { id: m[1], origin: new URL(firstUrl).origin } : null; }
+  catch { return null; }
+}
+
+const posterCache = {};
+async function fetchPoster(ref) {
+  if (!ref) return null;
+  if (posterCache[ref.id]) return posterCache[ref.id];
+  const cached = localStorage.getItem("poster_" + ref.id);
+  if (cached) return (posterCache[ref.id] = cached);
+  try {
+    const r = await fetch(`${ref.origin}/search.php?term=${ref.id}`);
+    const arr = await r.json();
+    const it = arr.find((x) => String(x.tmdb) === String(ref.id)) || arr[0];
+    if (!it || !it.image_url) return null;
+    const url = it.image_url.replace("/w185/", "/w500/"); // resolução maior
+    localStorage.setItem("poster_" + ref.id, url);
+    return (posterCache[ref.id] = url);
+  } catch (e) { console.warn("[poster]", e); return null; }
+}
+
+// Carrega o pôster de forma assíncrona e injeta no card (mantém a inicial até chegar).
+async function loadPoster(card, title) {
+  const url = await fetchPoster(seriesRef(title));
+  if (!url || !card.isConnected) return;
+  const img = el("img");
+  img.loading = "lazy"; img.alt = title; img.src = url;
+  img.onerror = () => img.remove();
+  img.onload = () => { const fb = card.querySelector(".fallback"); if (fb) fb.remove(); };
+  card.insertBefore(img, card.firstChild);
 }
 
 // ── Componente card ────────────────────────────────────
@@ -86,13 +127,15 @@ function showView(node) {
 
 function goTitles() {
   state.title = null; state.season = null;
-  setHeader("PONYFLIX", false);
+  setHeader(CONFIG.homeTitle || "PONYFLIX", false);
   const grid = el("div", "grid");
   for (const title of Object.keys(DATA)) {
     const last = progress[title] && Object.keys(progress[title]).length
       ? Object.keys(progress[title]).slice(-1)[0] : null;
-    grid.appendChild(makeCard(titleCover(title), title, last ? "▸ " + last : null,
-                              () => goSeasons(title)));
+    const card = makeCard(CONFIG.autoCovers ? null : titleCover(title),
+                          title, last ? "▸ " + last : null, () => goSeasons(title));
+    if (CONFIG.autoCovers) loadPoster(card, title);
+    grid.appendChild(card);
   }
   showView(grid);
 }
@@ -104,8 +147,11 @@ function goSeasons(title) {
   const grid = el("div", "grid");
   for (const season of Object.keys(seasons)) {
     const ep = progress[title]?.[season]?.episodio;
-    grid.appendChild(makeCard(seasonCover(season), season, ep ? "▸ ep." + ep : null,
-                              () => goEpisodes(title, season)));
+    // MLP usa a arte tN.png; animes reaproveitam o pôster da série em cada temporada.
+    const card = makeCard(CONFIG.seasonCovers ? seasonCover(season) : null,
+                          season, ep ? "▸ ep." + ep : null, () => goEpisodes(title, season));
+    if (!CONFIG.seasonCovers && CONFIG.autoCovers) loadPoster(card, title);
+    grid.appendChild(card);
   }
   showView(grid);
 }
@@ -139,10 +185,42 @@ function goEpisodes(title, season) {
 
 // ── Player ─────────────────────────────────────────────
 function openPlayer(title, season, eps, idx) {
-  playerCtx = { title, season, eps, idx };
+  const audios = (window.PONYFLIX_AUDIOS && window.PONYFLIX_AUDIOS[title]) || null;
+  playerCtx = { title, season, eps, idx, audios, audioId: null };
+  // áudio padrão = o id que já está na URL do episódio (o base/legendado)
+  const m = eps[0] && eps[0][1].match(/\/video\/(\d+)\//);
+  playerCtx.audioId = m ? m[1] : null;
+  buildAudioSelector();
   loadEp(idx);
   $("#player").classList.remove("hidden");
 }
+
+// URL do episódio já com o áudio (dub/leg) selecionado aplicado.
+function epUrl(idx) {
+  let u = playerCtx.eps[idx][1];
+  if (playerCtx.audioId) u = u.replace(/(\/video\/)\d+(\/)/, `$1${playerCtx.audioId}$2`);
+  return u;
+}
+
+// Botões Legendado/Dublado no topo do player (só quando há 2+ versões).
+function buildAudioSelector() {
+  const box = $("#audioSel"); box.innerHTML = "";
+  const audios = playerCtx.audios;
+  if (!audios || Object.keys(audios).length < 2) return;
+  for (const [label, id] of Object.entries(audios)) {
+    const b = el("button", "audio-btn");
+    b.textContent = label;
+    if (String(id) === String(playerCtx.audioId)) b.classList.add("active");
+    b.addEventListener("click", () => {
+      if (String(id) === String(playerCtx.audioId)) return;
+      playerCtx.audioId = String(id);
+      buildAudioSelector();       // re-destaca o ativo
+      loadEp(playerCtx.idx);      // recarrega no mesmo episódio
+    });
+    box.appendChild(b);
+  }
+}
+
 function loadEp(idx) {
   const { title, season, eps } = playerCtx;
   idx = Math.max(0, Math.min(idx, eps.length - 1));
@@ -159,7 +237,7 @@ function loadEp(idx) {
     castLoadCurrent();
   } else {
     $("#castPanel").classList.add("hidden");
-    $("#videoFrame").src = eps[idx][1];
+    $("#videoFrame").src = epUrl(idx);
   }
 }
 function closePlayer() {
@@ -193,7 +271,7 @@ window.__onGCastApiAvailable = function (available) {
       } else if (e.sessionState === S.SESSION_ENDED) {
         // Voltou pro celular/PC: retoma o iframe do episódio atual
         $("#castPanel").classList.add("hidden");
-        if (playerCtx) $("#videoFrame").src = playerCtx.eps[playerCtx.idx][1];
+        if (playerCtx) $("#videoFrame").src = epUrl(playerCtx.idx);
       }
     }
   );
@@ -228,13 +306,13 @@ async function resolveDirectUrl(embedUrl) {
 async function castLoadCurrent() {
   const session = castContext && castContext.getCurrentSession();
   if (!session || !playerCtx) return;
-  const [name, embed] = playerCtx.eps[playerCtx.idx];
+  const name = playerCtx.eps[playerCtx.idx][0];
   const panel = $("#castPanel");
   $("#castEp").textContent = name;
   $("#castStatus").textContent = "Carregando…";
   panel.classList.remove("hidden");
   try {
-    const media = await resolveDirectUrl(embed);
+    const media = await resolveDirectUrl(epUrl(playerCtx.idx));
     if (!media) throw new Error("sem fonte de vídeo");
     const info = new chrome.cast.media.MediaInfo(media.url, media.type);
     info.metadata = new chrome.cast.media.GenericMediaMetadata();

@@ -97,11 +97,23 @@ body {
 
 .footer {
   flex: 0 0 auto;
-  height: 30px; padding: 0 14px;
-  display: flex; align-items: center; justify-content: flex-end;
+  height: 34px; padding: 0 10px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
   background: var(--panel); color: var(--dim); font-size: 11px;
 }
 .footer b { color: #d94fc3; }
+.footer .credit { margin-left: auto; }
+
+.footer-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 12px; border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  color: #fff; font-size: 11px; font-weight: 700; text-decoration: none;
+  border: 1px solid rgba(255,255,255,.2);
+  transition: filter .15s, transform .15s;
+}
+.footer-link:hover { filter: brightness(1.12); transform: translateY(-1px); }
+.footer-link:active { transform: translateY(0); }
 
 /* ── Grid de cards ──────────────────────────────────── */
 .grid {
@@ -158,6 +170,7 @@ body {
   border: 1px solid rgba(255,224,77,.4);
 }
 
+
 /* ── Lista de episódios ─────────────────────────────── */
 .ep-list { display: flex; flex-direction: column; gap: 8px; padding-bottom: 20px; }
 .ep-row {
@@ -213,6 +226,20 @@ body {
   width: 26px; height: 26px; flex: 0 0 auto;
   cursor: pointer;
   /* o proprio elemento se esconde quando nao ha Chromecast na rede */
+}
+
+.audio-sel { display: flex; gap: 4px; flex: 0 0 auto; }
+.audio-btn {
+  background: var(--card); color: var(--sub);
+  border: 1px solid transparent; border-radius: 999px;
+  padding: 5px 12px; font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  transition: background .15s, color .15s;
+}
+.audio-btn:hover { background: var(--card-hl); color: var(--text); }
+.audio-btn.active {
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  color: #fff; border-color: rgba(255,255,255,.25);
 }
 
 .player-nav { display: flex; gap: 8px; flex: 0 0 auto; }
