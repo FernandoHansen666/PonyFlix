@@ -348,6 +348,37 @@ window.PONYFLIX_DATA = {
       "Episódio 36": "https://serv01.meusdoramas.club/#/video/86031/4/36/",
       "Episódio 37": "https://serv01.meusdoramas.club/#/video/86031/4/37/"
     }
+  },
+  "Solo Leveling": {
+    "Temporada 1": {
+      "Episódio 1": "https://serv01.meusdoramas.club/#/video/127532/1/1/",
+      "Episódio 2": "https://serv01.meusdoramas.club/#/video/127532/1/2/",
+      "Episódio 3": "https://serv01.meusdoramas.club/#/video/127532/1/3/",
+      "Episódio 4": "https://serv01.meusdoramas.club/#/video/127532/1/4/",
+      "Episódio 5": "https://serv01.meusdoramas.club/#/video/127532/1/5/",
+      "Episódio 6": "https://serv01.meusdoramas.club/#/video/127532/1/6/",
+      "Episódio 7": "https://serv01.meusdoramas.club/#/video/127532/1/7/",
+      "Episódio 8": "https://serv01.meusdoramas.club/#/video/127532/1/8/",
+      "Episódio 9": "https://serv01.meusdoramas.club/#/video/127532/1/9/",
+      "Episódio 10": "https://serv01.meusdoramas.club/#/video/127532/1/10/",
+      "Episódio 11": "https://serv01.meusdoramas.club/#/video/127532/1/11/",
+      "Episódio 12": "https://serv01.meusdoramas.club/#/video/127532/1/12/"
+    },
+    "Temporada 2": {
+      "Episódio 1": "https://serv01.meusdoramas.club/#/video/127532/2/1/",
+      "Episódio 2": "https://serv01.meusdoramas.club/#/video/127532/2/2/",
+      "Episódio 3": "https://serv01.meusdoramas.club/#/video/127532/2/3/",
+      "Episódio 4": "https://serv01.meusdoramas.club/#/video/127532/2/4/",
+      "Episódio 5": "https://serv01.meusdoramas.club/#/video/127532/2/5/",
+      "Episódio 6": "https://serv01.meusdoramas.club/#/video/127532/2/6/",
+      "Episódio 7": "https://serv01.meusdoramas.club/#/video/127532/2/7/",
+      "Episódio 8": "https://serv01.meusdoramas.club/#/video/127532/2/8/",
+      "Episódio 9": "https://serv01.meusdoramas.club/#/video/127532/2/9/",
+      "Episódio 10": "https://serv01.meusdoramas.club/#/video/127532/2/10/",
+      "Episódio 11": "https://serv01.meusdoramas.club/#/video/127532/2/11/",
+      "Episódio 12": "https://serv01.meusdoramas.club/#/video/127532/2/12/",
+      "Episódio 13": "https://serv01.meusdoramas.club/#/video/127532/2/13/"
+    }
   }
 };
 
@@ -359,5 +390,9 @@ window.PONYFLIX_AUDIOS = {
   "Dr. Stone": {
     "Legendado": 86031,
     "Dublado": 860311
+  },
+  "Solo Leveling": {
+    "Legendado": 127532,
+    "Dublado": 1275321
   }
 };
