@@ -142,20 +142,22 @@ body {
 }
 
 /* ── Foco por controle (D-pad / teclado) ────────────── */
+/* Só aparece com navegação por teclado/controle (:focus-visible),
+   nunca com mouse — então não incomoda quem usa no PC. */
 :focus { outline: none; }
 .card:focus-visible {
-  outline: 3px solid var(--gold); outline-offset: 3px;
+  outline: 3px solid #a855f7; outline-offset: 3px;
   transform: translateY(-4px);
-  border-color: var(--accent);
-  box-shadow: 0 10px 30px rgba(255,224,77,.28);
+  border-color: #a855f7;
+  box-shadow: 0 10px 30px rgba(140,26,242,.45);
 }
 .ep-row:focus-visible {
-  outline: 3px solid var(--gold); outline-offset: -1px;
+  outline: 3px solid #a855f7; outline-offset: -1px;
   background: var(--card-hl);
 }
 button:focus-visible, a:focus-visible,
 google-cast-launcher:focus-visible, [tabindex]:focus-visible {
-  outline: 3px solid var(--gold); outline-offset: 2px;
+  outline: 3px solid #a855f7; outline-offset: 2px;
 }
 .card img {
   position: absolute; inset: 0;

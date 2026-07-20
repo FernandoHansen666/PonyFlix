@@ -124,7 +124,6 @@ function showView(node) {
   view.scrollTop = 0;
   // reinicia animação
   view.style.animation = "none"; view.offsetHeight; view.style.animation = "";
-  setTimeout(focusFirst, 0);   // foco no 1º item p/ navegação por controle
 }
 
 function goTitles() {
@@ -196,7 +195,6 @@ function openPlayer(title, season, eps, idx) {
   buildAudioSelector();
   loadEp(idx);
   $("#player").classList.remove("hidden");
-  setTimeout(() => $("#playerBack").focus(), 0);  // foco num botão, não no iframe
 }
 
 // URL do episódio já com o áudio (dub/leg) selecionado aplicado.
@@ -362,7 +360,6 @@ async function boot() {
     sp.style.opacity = "0";
     setTimeout(() => sp.classList.add("hidden"), 500);
     $("#app").classList.remove("hidden");
-    focusFirst();
   }, 900);
 }
 
@@ -385,10 +382,6 @@ function navScope() {
 function focusables() {
   return [...navScope().querySelectorAll('.card,.ep-row,button,a[href],[tabindex="0"]')]
     .filter((el) => !el.disabled && el.offsetParent !== null && el.getClientRects().length);
-}
-function focusFirst() {
-  const list = focusables();
-  if (list.length && !list.includes(document.activeElement)) list[0].focus();
 }
 function spatialNav(dir) {
   const list = focusables();
