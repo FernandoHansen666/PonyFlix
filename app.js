@@ -91,6 +91,7 @@ async function loadPoster(card, title) {
 // ── Componente card ────────────────────────────────────
 function makeCard(coverSrc, label, badge, onClick) {
   const card = el("div", "card");
+  card.tabIndex = 0; card.setAttribute("role", "button");
   card.addEventListener("click", onClick);
 
   if (coverSrc) {
@@ -123,6 +124,7 @@ function showView(node) {
   view.scrollTop = 0;
   // reinicia animação
   view.style.animation = "none"; view.offsetHeight; view.style.animation = "";
+  setTimeout(focusFirst, 0);   // foco no 1º item p/ navegação por controle
 }
 
 function goTitles() {
@@ -167,6 +169,7 @@ function goEpisodes(title, season) {
     const num = idx + 1;
     const isCurrent = lastEp === num;
     const row = el("div", "ep-row" + (isCurrent ? " current" : ""));
+    row.tabIndex = 0; row.setAttribute("role", "button");
     row.addEventListener("click", () => openPlayer(title, season, eps, idx));
 
     const n = el("div", "ep-num"); n.textContent = String(num).padStart(2, "0");
@@ -193,6 +196,7 @@ function openPlayer(title, season, eps, idx) {
   buildAudioSelector();
   loadEp(idx);
   $("#player").classList.remove("hidden");
+  setTimeout(() => $("#playerBack").focus(), 0);  // foco num botão, não no iframe
 }
 
 // URL do episódio já com o áudio (dub/leg) selecionado aplicado.
@@ -358,6 +362,7 @@ async function boot() {
     sp.style.opacity = "0";
     setTimeout(() => sp.classList.add("hidden"), 500);
     $("#app").classList.remove("hidden");
+    focusFirst();
   }, 900);
 }
 
@@ -370,17 +375,76 @@ const dotsTimer = setInterval(() => {
   if (l && l.style.color !== "var(--accent)") l.textContent = d[dotsTick];
 }, 450);
 
+// ── Navegação por controle (D-pad / teclado) ───────────
+// Foco espacial: as setas movem o foco para o elemento vizinho na direção.
+function navScope() {
+  if (!$("#player").classList.contains("hidden")) return $("#player");
+  if (!$("#app").classList.contains("hidden")) return $("#app");
+  return document.body;
+}
+function focusables() {
+  return [...navScope().querySelectorAll('.card,.ep-row,button,a[href],[tabindex="0"]')]
+    .filter((el) => !el.disabled && el.offsetParent !== null && el.getClientRects().length);
+}
+function focusFirst() {
+  const list = focusables();
+  if (list.length && !list.includes(document.activeElement)) list[0].focus();
+}
+function spatialNav(dir) {
+  const list = focusables();
+  if (!list.length) return;
+  const cur = document.activeElement;
+  if (!cur || !list.includes(cur)) { list[0].focus(); return; }
+  const r = cur.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  let best = null, bestScore = Infinity;
+  for (const el of list) {
+    if (el === cur) continue;
+    const b = el.getBoundingClientRect();
+    const dx = b.left + b.width / 2 - cx, dy = b.top + b.height / 2 - cy;
+    let primary, cross;
+    if (dir === "right")     { if (dx <= 1)  continue; primary = dx;  cross = Math.abs(dy); }
+    else if (dir === "left") { if (dx >= -1) continue; primary = -dx; cross = Math.abs(dy); }
+    else if (dir === "down") { if (dy <= 1)  continue; primary = dy;  cross = Math.abs(dx); }
+    else                     { if (dy >= -1) continue; primary = -dy; cross = Math.abs(dx); }
+    const score = primary + cross * 2;   // prioriza a direção, penaliza desvio lateral
+    if (score < bestScore) { bestScore = score; best = el; }
+  }
+  if (best) best.focus();
+}
+
 // listeners
 $("#backBtn").addEventListener("click", goBack);
 $("#playerBack").addEventListener("click", closePlayer);
 $("#prevEp").addEventListener("click", () => loadEp(playerCtx.idx - 1));
 $("#nextEp").addEventListener("click", () => loadEp(playerCtx.idx + 1));
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") {
-    if (!$("#player").classList.contains("hidden")) closePlayer();
-    else goBack();
+  const inPlayer = !$("#player").classList.contains("hidden");
+  switch (e.key) {
+    case "ArrowRight": e.preventDefault(); spatialNav("right"); break;
+    case "ArrowLeft":  e.preventDefault(); spatialNav("left");  break;
+    case "ArrowDown":  e.preventDefault(); spatialNav("down");  break;
+    case "ArrowUp":    e.preventDefault(); spatialNav("up");    break;
+    case "Enter": case " ": {
+      const el = document.activeElement;
+      if (el && (el.classList.contains("card") || el.classList.contains("ep-row"))) {
+        e.preventDefault(); el.click();
+      }
+      break;
+    }
+    // Voltar do controle (Escape / Backspace / tecla BACK do Android)
+    case "Escape": case "Backspace": case "GoBack": case "BrowserBack":
+      e.preventDefault();
+      if (inPlayer) closePlayer(); else goBack();
+      break;
   }
 });
 
 window.addEventListener("beforeunload", () => clearInterval(dotsTimer));
+
+// PWA: registra o service worker (necessário para instalar / gerar APK)
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+
 boot();
