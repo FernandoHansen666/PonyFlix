@@ -51,6 +51,7 @@ function seasonCover(season) {
 
 // ── Catálogo (padrão do JSON + dinâmico via API) ───────
 const SITE = "https://serv01.meusdoramas.club";
+const TMDB_KEY = window.TMDB_KEY || CONFIG.tmdbKey || "";  // chave grátis (read-only)
 const dynCatalog = {};   // títulos carregados sob demanda (busca/favoritos)
 
 function seasonsOf(title) { return dynCatalog[title] || DATA[title]; }
@@ -239,15 +240,48 @@ function setupHeaderSearch() {
     timer = setTimeout(() => runSearch(q), 300);
   };
 }
+// Classifica um resultado como anime (Animação + origem Japão) via TMDB.
+// dublado usa id base (id sem o último dígito). Cacheia o resultado.
+const tmdbCache = {};
+async function classifyIsAnime(item) {
+  const k = item.tmdb;
+  if (k in tmdbCache) return tmdbCache[k];
+  const ls = localStorage.getItem("tmdbcat_" + k);
+  if (ls !== null) return (tmdbCache[k] = ls === "1");
+  if (!TMDB_KEY) return null;
+  const dub = /dublado/i.test(item.rawtitle || item.name);
+  const id = dub ? String(item.tmdb).slice(0, -1) : String(item.tmdb);
+  const type = item.is_movie ? "movie" : "tv";
+  try {
+    const d = await fetchJson(`https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_KEY}`);
+    const anim = (d.genres || []).some((g) => g.id === 16);
+    const jp = (d.origin_country || []).includes("JP") || d.original_language === "ja";
+    const res = !!(anim && jp);
+    tmdbCache[k] = res;
+    localStorage.setItem("tmdbcat_" + k, res ? "1" : "0");
+    return res;
+  } catch (e) { return null; }
+}
+
 async function runSearch(q) {
+  showView(msgEl("Buscando…"));
   try {
     const arr = await fetchJson(`${SITE}/search.php?term=${encodeURIComponent(q)}`);
-    const items = arr.map((x) => ({
+    let items = arr.map((x) => ({
       name: cleanName(x.title),
+      rawtitle: x.title,
       tmdb: String(x.tmdb),
       post_id: x.post_id,
+      is_movie: x.is_movie === "1" || x.is_movie === 1,
       poster: (x.image_url || "").replace("/w185/", "/w500/"),
     }));
+    // Filtra por categoria (anime / live-action) usando o TMDB, se houver chave.
+    if (CONFIG.cat && TMDB_KEY) {
+      const flags = await Promise.all(items.map(classifyIsAnime));
+      const want = CONFIG.cat === "anime";
+      const filtered = items.filter((_, i) => flags[i] === want);
+      items = flags.every((f) => f === null) ? items : filtered;  // tudo falhou → não esconde
+    }
     showView(items.length ? buildTitleGrid(items) : msgEl("Nada encontrado."));
   } catch (e) {
     console.error("[busca]", e);
