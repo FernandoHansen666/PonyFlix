@@ -49,16 +49,60 @@ function seasonCover(season) {
   return /^\d+$/.test(num) ? `assets/t${num}.png` : null;
 }
 
+// ── Catálogo (padrão do JSON + dinâmico via API) ───────
+const SITE = "https://serv01.meusdoramas.club";
+const dynCatalog = {};   // títulos carregados sob demanda (busca/favoritos)
+
+function seasonsOf(title) { return dynCatalog[title] || DATA[title]; }
+function fetchJson(url) {
+  return fetch(url).then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });
+}
+function cleanName(t) { return String(t).replace(/^\d+\s*-\s*/, "").trim(); }
+
+// Constrói { "Temporada N": { "Episódio M": url } } a partir do get-post.php.
+function buildSeasons(d) {
+  const out = {}, eps = d.episodes || {};
+  for (const s of Object.keys(eps).sort((a, b) => a - b)) {
+    const season = {};
+    for (const e of Object.keys(eps[s]).sort((a, b) => a - b))
+      season[`Episódio ${e}`] = `${SITE}/#/video/${d.tmdb}/${s}/${e}/`;
+    out[`Temporada ${s}`] = season;
+  }
+  return out;
+}
+
+// Abre um título: usa o que já existe, ou carrega os episódios sob demanda.
+async function openTitle(item) {
+  if (seasonsOf(item.name)) return goSeasons(item.name);
+  if (!item.post_id) return;
+  try {
+    const d = await fetchJson(`${SITE}/posts/get-post.php?id=${item.post_id}`);
+    dynCatalog[item.name] = buildSeasons(d);
+    goSeasons(item.name);
+  } catch (e) { console.error("[openTitle]", e); }
+}
+
+// ── Favoritos (localStorage, separado por página via CONFIG.favKey) ──
+function favKey() { return CONFIG.favKey || "favs"; }
+function loadFavs() { try { return JSON.parse(localStorage.getItem(favKey())) || []; } catch { return []; } }
+function saveFavs(f) { try { localStorage.setItem(favKey(), JSON.stringify(f)); } catch {} }
+function isFav(name) { return loadFavs().some((x) => x.name === name); }
+function toggleFav(item) {
+  const f = loadFavs();
+  saveFavs(f.some((x) => x.name === item.name)
+    ? f.filter((x) => x.name !== item.name) : f.concat([item]));
+}
+
 // ── Capas automáticas (TMDB via meusdoramas) ───────────
-// Extrai o id TMDB e a origem a partir do link do 1º episódio da série.
 function seriesRef(title) {
-  const seasons = DATA[title]; if (!seasons) return null;
+  const seasons = seasonsOf(title); if (!seasons) return null;
   const firstSeason = Object.values(seasons)[0]; if (!firstSeason) return null;
   const firstUrl = Object.values(firstSeason)[0]; if (!firstUrl) return null;
   const m = firstUrl.match(/\/video\/(\d+)\//);
   try { return m ? { id: m[1], origin: new URL(firstUrl).origin } : null; }
   catch { return null; }
 }
+function tmdbOf(name) { const r = seriesRef(name); return r ? r.id : null; }
 
 const posterCache = {};
 async function fetchPoster(ref) {
@@ -77,16 +121,17 @@ async function fetchPoster(ref) {
   } catch (e) { console.warn("[poster]", e); return null; }
 }
 
-// Carrega o pôster de forma assíncrona e injeta no card (mantém a inicial até chegar).
-async function loadPoster(card, title) {
-  const url = await fetchPoster(seriesRef(title));
+// Injeta o pôster no card (mantém a inicial até chegar).
+async function loadPosterByTmdb(card, ref) {
+  const url = await fetchPoster(ref);
   if (!url || !card.isConnected) return;
   const img = el("img");
-  img.loading = "lazy"; img.alt = title; img.src = url;
+  img.loading = "lazy"; img.alt = ""; img.src = url;
   img.onerror = () => img.remove();
   img.onload = () => { const fb = card.querySelector(".fallback"); if (fb) fb.remove(); };
   card.insertBefore(img, card.firstChild);
 }
+function loadPoster(card, title) { return loadPosterByTmdb(card, seriesRef(title)); }
 
 // ── Componente card ────────────────────────────────────
 function makeCard(coverSrc, label, badge, onClick) {
@@ -128,38 +173,92 @@ function showView(node) {
 
 function goTitles() {
   state.title = null; state.season = null;
-  const grid = el("div", "grid");
-  const cards = [];
-  for (const title of Object.keys(DATA)) {
-    const last = progress[title] && Object.keys(progress[title]).length
-      ? Object.keys(progress[title]).slice(-1)[0] : null;
-    const card = makeCard(CONFIG.autoCovers ? null : titleCover(title),
-                          title, last ? "▸ " + last : null, () => goSeasons(title));
-    card.dataset.q = slug(title);   // usado pela busca
-    if (CONFIG.autoCovers) loadPoster(card, title);
-    grid.appendChild(card);
-    cards.push(card);
-  }
   setHeader(CONFIG.homeTitle || "PONYFLIX", false, CONFIG.search);
-  if (CONFIG.search) setupHeaderSearch(cards);
-  showView(grid);
+  if (CONFIG.search) setupHeaderSearch();
+  renderHome();
 }
 
-// Liga o campo de busca do header pra filtrar os cards (slug: ignora acento/pontuação).
-function setupHeaderSearch(cards) {
+// Home = favoritos do usuário; se não tiver nenhum, os títulos do JSON.
+function renderHome() {
+  const favs = loadFavs();
+  const items = favs.length
+    ? favs
+    : Object.keys(DATA).map((name) => ({ name, tmdb: tmdbOf(name) }));
+  showView(buildTitleGrid(items, favs.length === 0));
+}
+
+// Monta a grade de cards a partir de uma lista { name, tmdb, post_id, poster }.
+function buildTitleGrid(items, isDefaults) {
+  const grid = el("div", "grid");
+  if (!items.length) { grid.appendChild(msgEl("Nada por aqui.")); return grid; }
+  for (const it of items) {
+    const prog = progress[it.name];
+    const last = prog && Object.keys(prog).length ? Object.keys(prog).slice(-1)[0] : null;
+    const cover = it.poster || (CONFIG.autoCovers ? null : titleCover(it.name));
+    const card = makeCard(cover, it.name, last ? "▸ " + last : null, () => openTitle(it));
+    card.dataset.q = slug(it.name);
+    if (!it.poster && CONFIG.autoCovers && it.tmdb)
+      loadPosterByTmdb(card, { id: it.tmdb, origin: SITE });
+    if (CONFIG.favKey) addStar(card, it, isDefaults);
+    grid.appendChild(card);
+  }
+  return grid;
+}
+
+function msgEl(text) { const d = el("div", "empty-msg"); d.textContent = text; return d; }
+
+// Estrela de favoritar/desfavoritar no canto do card.
+function addStar(card, item, rerenderOnRemove) {
+  const star = el("button", "fav-star");
+  star.tabIndex = -1;
+  const upd = () => {
+    const on = isFav(item.name);
+    star.textContent = on ? "★" : "☆";
+    star.classList.toggle("on", on);
+    star.setAttribute("aria-label", on ? "Remover dos favoritos" : "Adicionar aos favoritos");
+  };
+  upd();
+  star.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleFav({ name: item.name, tmdb: item.tmdb, post_id: item.post_id, poster: item.poster });
+    upd();
+  });
+  card.appendChild(star);
+}
+
+// Busca dinâmica no catálogo do site (debounce); vazio volta pra home.
+function setupHeaderSearch() {
   const input = $("#headerSearch");
   if (!input) return;
   input.value = "";
+  let timer;
   input.oninput = () => {
-    const q = slug(input.value);
-    for (const c of cards) c.style.display = (!q || c.dataset.q.includes(q)) ? "" : "none";
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (!q) return renderHome();
+    timer = setTimeout(() => runSearch(q), 300);
   };
+}
+async function runSearch(q) {
+  try {
+    const arr = await fetchJson(`${SITE}/search.php?term=${encodeURIComponent(q)}`);
+    const items = arr.map((x) => ({
+      name: cleanName(x.title),
+      tmdb: String(x.tmdb),
+      post_id: x.post_id,
+      poster: (x.image_url || "").replace("/w185/", "/w500/"),
+    }));
+    showView(items.length ? buildTitleGrid(items) : msgEl("Nada encontrado."));
+  } catch (e) {
+    console.error("[busca]", e);
+    showView(msgEl("Erro na busca. Tente de novo."));
+  }
 }
 
 function goSeasons(title) {
   state.title = title; state.season = null;
   setHeader(title.toUpperCase(), true);
-  const seasons = DATA[title];
+  const seasons = seasonsOf(title);
   const grid = el("div", "grid");
   for (const season of Object.keys(seasons)) {
     const ep = progress[title]?.[season]?.episodio;
@@ -175,7 +274,7 @@ function goSeasons(title) {
 function goEpisodes(title, season) {
   state.season = season;
   setHeader(season.toUpperCase(), true);
-  const eps = Object.entries(DATA[title][season]); // [ [name, url], ... ]
+  const eps = Object.entries(seasonsOf(title)[season]); // [ [name, url], ... ]
   const lastEp = progress[title]?.[season]?.episodio;
 
   const list = el("div", "ep-list");
@@ -399,7 +498,7 @@ function navScope() {
   return document.body;
 }
 function focusables() {
-  return [...navScope().querySelectorAll('.card,.ep-row,button,a[href],input,[tabindex="0"]')]
+  return [...navScope().querySelectorAll('.card,.ep-row,button:not(.fav-star),a[href],input,[tabindex="0"]')]
     .filter((el) => !el.disabled && el.offsetParent !== null && el.getClientRects().length
                     && el.style.display !== "none");
 }
