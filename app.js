@@ -344,13 +344,12 @@ async function castLoadCurrent() {
 
 // ── Header / navegação ─────────────────────────────────
 function setHeader(text, showBack, showSearch) {
-  $("#headerTitle").textContent = text;
+  const t = $("#headerTitle");
+  t.textContent = text;
+  t.classList.toggle("header-title--logo", !!showSearch);   // logo compacta à esquerda
   $("#backBtn").classList.toggle("hidden", !showBack);
   const hs = $("#headerSearch");
-  if (hs) {
-    hs.classList.toggle("hidden", !showSearch);
-    $("#headerTitle").classList.toggle("hidden", !!showSearch);
-  }
+  if (hs) hs.classList.toggle("hidden", !showSearch);
 }
 function goBack() {
   if (state.season !== null) goSeasons(state.title);

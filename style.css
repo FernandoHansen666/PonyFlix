@@ -68,11 +68,13 @@ body {
   flex: 0 0 auto;
 }
 .header-title {
-  flex: 1; text-align: center;
+  flex: 1 1 auto; text-align: left;
   font-size: 22px; font-weight: 700; letter-spacing: 1px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.header-spacer { width: 44px; flex: 0 0 auto; }
+/* quando há busca ao lado, o nome vira uma logo compacta à esquerda */
+.header-title--logo { flex: 0 0 auto; margin-right: 10px; color: var(--accent); }
+.header-spacer { width: 8px; flex: 0 0 auto; }
 
 .back-btn {
   background: var(--card); color: var(--text);
