@@ -379,6 +379,38 @@ window.PONYFLIX_DATA = {
       "Episódio 12": "https://serv01.meusdoramas.club/#/video/127532/2/12/",
       "Episódio 13": "https://serv01.meusdoramas.club/#/video/127532/2/13/"
     }
+  },
+  "Yondemasu yo, Azazel-san": {
+    "Temporada 1": {
+      "Episódio 1": "https://serv01.meusdoramas.club/#/video/49294/1/1/",
+      "Episódio 2": "https://serv01.meusdoramas.club/#/video/49294/1/2/",
+      "Episódio 3": "https://serv01.meusdoramas.club/#/video/49294/1/3/",
+      "Episódio 4": "https://serv01.meusdoramas.club/#/video/49294/1/4/",
+      "Episódio 5": "https://serv01.meusdoramas.club/#/video/49294/1/5/",
+      "Episódio 6": "https://serv01.meusdoramas.club/#/video/49294/1/6/",
+      "Episódio 7": "https://serv01.meusdoramas.club/#/video/49294/1/7/",
+      "Episódio 8": "https://serv01.meusdoramas.club/#/video/49294/1/8/",
+      "Episódio 9": "https://serv01.meusdoramas.club/#/video/49294/1/9/",
+      "Episódio 10": "https://serv01.meusdoramas.club/#/video/49294/1/10/",
+      "Episódio 11": "https://serv01.meusdoramas.club/#/video/49294/1/11/",
+      "Episódio 12": "https://serv01.meusdoramas.club/#/video/49294/1/12/",
+      "Episódio 13": "https://serv01.meusdoramas.club/#/video/49294/1/13/"
+    },
+    "Temporada 2": {
+      "Episódio 1": "https://serv01.meusdoramas.club/#/video/49294/2/1/",
+      "Episódio 2": "https://serv01.meusdoramas.club/#/video/49294/2/2/",
+      "Episódio 3": "https://serv01.meusdoramas.club/#/video/49294/2/3/",
+      "Episódio 4": "https://serv01.meusdoramas.club/#/video/49294/2/4/",
+      "Episódio 5": "https://serv01.meusdoramas.club/#/video/49294/2/5/",
+      "Episódio 6": "https://serv01.meusdoramas.club/#/video/49294/2/6/",
+      "Episódio 7": "https://serv01.meusdoramas.club/#/video/49294/2/7/",
+      "Episódio 8": "https://serv01.meusdoramas.club/#/video/49294/2/8/",
+      "Episódio 9": "https://serv01.meusdoramas.club/#/video/49294/2/9/",
+      "Episódio 10": "https://serv01.meusdoramas.club/#/video/49294/2/10/",
+      "Episódio 11": "https://serv01.meusdoramas.club/#/video/49294/2/11/",
+      "Episódio 12": "https://serv01.meusdoramas.club/#/video/49294/2/12/",
+      "Episódio 13": "https://serv01.meusdoramas.club/#/video/49294/2/13/"
+    }
   }
 };
 
