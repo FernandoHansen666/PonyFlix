@@ -242,11 +242,12 @@ function setupHeaderSearch() {
 }
 // Classifica um resultado como anime (Animação + origem Japão) via TMDB.
 // dublado usa id base (id sem o último dígito). Cacheia o resultado.
+// Anime = gênero Animação (id 16). Não exige Japão (inclui donghua etc.).
 const tmdbCache = {};
 async function classifyIsAnime(item) {
   const k = item.tmdb;
   if (k in tmdbCache) return tmdbCache[k];
-  const ls = localStorage.getItem("tmdbcat_" + k);
+  const ls = localStorage.getItem("tmdbanim_" + k);
   if (ls !== null) return (tmdbCache[k] = ls === "1");
   if (!TMDB_KEY) return null;
   const dub = /dublado/i.test(item.rawtitle || item.name);
@@ -254,11 +255,9 @@ async function classifyIsAnime(item) {
   const type = item.is_movie ? "movie" : "tv";
   try {
     const d = await fetchJson(`https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_KEY}`);
-    const anim = (d.genres || []).some((g) => g.id === 16);
-    const jp = (d.origin_country || []).includes("JP") || d.original_language === "ja";
-    const res = !!(anim && jp);
+    const res = (d.genres || []).some((g) => g.id === 16);
     tmdbCache[k] = res;
-    localStorage.setItem("tmdbcat_" + k, res ? "1" : "0");
+    localStorage.setItem("tmdbanim_" + k, res ? "1" : "0");
     return res;
   } catch (e) { return null; }
 }
