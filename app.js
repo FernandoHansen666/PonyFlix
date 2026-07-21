@@ -19,6 +19,9 @@ let progress = loadProgress();
 const state = { title: null, season: null };
 // contexto do player
 let playerCtx = null;
+// home: itens atuais + letra do alfabeto selecionada
+let homeItems = [];
+let activeLetter = null;
 // config opcional da página (definida em window.APP_CONFIG antes deste script)
 const CONFIG = window.APP_CONFIG || {};
 
@@ -176,6 +179,7 @@ function showView(node) {
 
 function goTitles() {
   state.title = null; state.season = null;
+  activeLetter = null;
   setHeader(CONFIG.homeTitle || "PONYFLIX", false, CONFIG.search);
   if (CONFIG.search) setupHeaderSearch();
   renderHome();
@@ -184,10 +188,51 @@ function goTitles() {
 // Home = favoritos do usuário; se não tiver nenhum, os títulos do JSON.
 function renderHome() {
   const favs = loadFavs();
-  const items = favs.length
+  homeItems = favs.length
     ? favs
     : Object.keys(DATA).map((name) => ({ name, tmdb: tmdbOf(name) }));
-  showView(buildTitleGrid(items, favs.length === 0));
+  drawHome();
+}
+
+// Desenha a home (alfabeto + grade filtrada pela letra ativa).
+function drawHome() {
+  const wrap = el("div", "home");
+  if (CONFIG.search) wrap.appendChild(buildAlphabet());
+  const items = activeLetter
+    ? homeItems.filter((it) => firstLetter(it.name) === activeLetter)
+    : homeItems;
+  wrap.appendChild(buildTitleGrid(items, !loadFavs().length));
+  showView(wrap);
+}
+
+// Primeira letra do título (sem acento); não-letra vira "#".
+function firstLetter(name) {
+  const c = (slug(name) || "")[0] || "";
+  return /[a-z]/.test(c) ? c.toUpperCase() : "#";
+}
+
+// Barra A-Z abaixo da busca; letra sem títulos fica desabilitada.
+function buildAlphabet() {
+  const bar = el("div", "alpha");
+  const avail = new Set(homeItems.map((it) => firstLetter(it.name)));
+  const all = el("button", "alpha-btn alpha-all" + (activeLetter ? "" : " active"));
+  all.textContent = "Todos";
+  all.addEventListener("click", () => { activeLetter = null; drawHome(); });
+  bar.appendChild(all);
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  if (avail.has("#")) letters.push("#");
+  for (const L of letters) {
+    const b = el("button", "alpha-btn");
+    b.textContent = L;
+    if (!avail.has(L)) {
+      b.disabled = true;
+    } else {
+      if (activeLetter === L) b.classList.add("active");
+      b.addEventListener("click", () => { activeLetter = activeLetter === L ? null : L; drawHome(); });
+    }
+    bar.appendChild(b);
+  }
+  return bar;
 }
 
 // Monta a grade de cards a partir de uma lista { name, tmdb, post_id, poster }.

@@ -135,6 +135,27 @@ body {
   box-shadow: 0 0 0 3px rgba(140,26,242,.25);
 }
 
+/* ── Alfabeto (filtro por letra) ────────────────────── */
+.alpha {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 14px;
+}
+.alpha-btn {
+  min-width: 30px; padding: 6px 8px;
+  background: var(--card); color: var(--sub);
+  border: 1px solid transparent; border-radius: 8px;
+  font-size: 13px; font-weight: 700; font-family: inherit;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.alpha-all { min-width: auto; }
+.alpha-btn:hover:not(:disabled) { background: var(--card-hl); color: var(--text); }
+.alpha-btn.active {
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  color: #fff; border-color: rgba(255,255,255,.2);
+}
+.alpha-btn:disabled { opacity: .3; cursor: default; }
+
 /* ── Grid de cards ──────────────────────────────────── */
 .grid {
   display: grid;
