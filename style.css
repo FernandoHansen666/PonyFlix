@@ -115,6 +115,25 @@ body {
 .footer-link:hover { filter: brightness(1.12); transform: translateY(-1px); }
 .footer-link:active { transform: translateY(0); }
 
+/* ── Busca ──────────────────────────────────────────── */
+.search { margin-bottom: 14px; }
+.search-input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 15px; font-family: inherit;
+  color: var(--text);
+  background: var(--card);
+  border: 1.5px solid rgba(230,56,199,.28);
+  border-radius: 999px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.search-input::placeholder { color: var(--dim); }
+.search-input:focus, .search-input:focus-visible {
+  border-color: #a855f7;
+  box-shadow: 0 0 0 3px rgba(140,26,242,.25);
+}
+
 /* ── Grid de cards ──────────────────────────────────── */
 .grid {
   display: grid;

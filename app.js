@@ -129,16 +129,37 @@ function showView(node) {
 function goTitles() {
   state.title = null; state.season = null;
   setHeader(CONFIG.homeTitle || "PONYFLIX", false);
+  const wrap = el("div", "home");
   const grid = el("div", "grid");
+  const cards = [];
   for (const title of Object.keys(DATA)) {
     const last = progress[title] && Object.keys(progress[title]).length
       ? Object.keys(progress[title]).slice(-1)[0] : null;
     const card = makeCard(CONFIG.autoCovers ? null : titleCover(title),
                           title, last ? "▸ " + last : null, () => goSeasons(title));
+    card.dataset.q = slug(title);   // usado pela busca
     if (CONFIG.autoCovers) loadPoster(card, title);
     grid.appendChild(card);
+    cards.push(card);
   }
-  showView(grid);
+  if (CONFIG.search) wrap.appendChild(buildSearch(cards));
+  wrap.appendChild(grid);
+  showView(wrap);
+}
+
+// Barra de busca que filtra os cards pelo nome (usa slug: ignora acento/pontuação).
+function buildSearch(cards) {
+  const box = el("div", "search");
+  const input = el("input", "search-input");
+  input.type = "search";
+  input.placeholder = "Buscar anime…";
+  input.setAttribute("aria-label", "Buscar anime");
+  input.addEventListener("input", () => {
+    const q = slug(input.value);
+    for (const c of cards) c.style.display = (!q || c.dataset.q.includes(q)) ? "" : "none";
+  });
+  box.appendChild(input);
+  return box;
 }
 
 function goSeasons(title) {
@@ -380,8 +401,9 @@ function navScope() {
   return document.body;
 }
 function focusables() {
-  return [...navScope().querySelectorAll('.card,.ep-row,button,a[href],[tabindex="0"]')]
-    .filter((el) => !el.disabled && el.offsetParent !== null && el.getClientRects().length);
+  return [...navScope().querySelectorAll('.card,.ep-row,button,a[href],input,[tabindex="0"]')]
+    .filter((el) => !el.disabled && el.offsetParent !== null && el.getClientRects().length
+                    && el.style.display !== "none");
 }
 function spatialNav(dir) {
   const list = focusables();
@@ -413,6 +435,13 @@ $("#prevEp").addEventListener("click", () => loadEp(playerCtx.idx - 1));
 $("#nextEp").addEventListener("click", () => loadEp(playerCtx.idx + 1));
 document.addEventListener("keydown", (e) => {
   const inPlayer = !$("#player").classList.contains("hidden");
+  // Digitando na busca: setas/OK ficam nativos; só ArrowDown "sai" p/ a grade.
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) {
+    if (e.key === "ArrowDown") { e.preventDefault(); spatialNav("down"); }
+    else if (e.key === "Escape") { ae.blur(); }
+    return;
+  }
   switch (e.key) {
     case "ArrowRight": e.preventDefault(); spatialNav("right"); break;
     case "ArrowLeft":  e.preventDefault(); spatialNav("left");  break;
