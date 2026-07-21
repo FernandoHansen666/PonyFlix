@@ -2,10 +2,10 @@
  * Só intercepta requisições do próprio site; vídeo/TMDB/busca (cross-origin)
  * passam direto pela rede.
  */
-const CACHE = "ponyflix-v1";
+const CACHE = "ponyflix-v2";
 const SHELL = [
   "./", "./index.html", "./style.css", "./app.js", "./episodios.js",
-  "./animes.html", "./animes.js", "./manifest.json",
+  "./animes.html", "./animes.js", "./series.html", "./series.js", "./manifest.json",
   "./assets/icon-192.png", "./assets/icon-512.png",
 ];
 
