@@ -293,11 +293,12 @@ google-cast-launcher:focus-visible, [tabindex]:focus-visible {
   cursor: pointer; font-family: inherit;
   transition: background .15s, color .15s;
 }
-.audio-btn:hover { background: var(--card-hl); color: var(--text); }
+.audio-btn:hover:not(:disabled) { background: var(--card-hl); color: var(--text); }
 .audio-btn.active {
   background: linear-gradient(135deg, var(--accent2), var(--accent));
   color: #fff; border-color: rgba(255,255,255,.25);
 }
+.audio-btn:disabled { opacity: .4; color: var(--dim); cursor: default; }
 
 .player-nav { display: flex; gap: 8px; flex: 0 0 auto; }
 .nav-btn {

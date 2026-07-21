@@ -355,17 +355,23 @@ function epUrl(idx) {
 function buildAudioSelector() {
   const box = $("#audioSel"); box.innerHTML = "";
   const audios = playerCtx.audios;
-  if (!audios || Object.keys(audios).length < 2) return;
-  for (const [label, id] of Object.entries(audios)) {
+  if (!audios) return;   // sem info de áudio (MLP, séries sem dub) → não mostra
+  // Sempre Legendado + Dublado; Dublado desabilitado se não existir.
+  for (const label of ["Legendado", "Dublado"]) {
+    const id = audios[label];
     const b = el("button", "audio-btn");
     b.textContent = label;
-    if (String(id) === String(playerCtx.audioId)) b.classList.add("active");
-    b.addEventListener("click", () => {
-      if (String(id) === String(playerCtx.audioId)) return;
-      playerCtx.audioId = String(id);
-      buildAudioSelector();       // re-destaca o ativo
-      loadEp(playerCtx.idx);      // recarrega no mesmo episódio
-    });
+    if (!id) {
+      b.disabled = true;   // ex.: sem dublado
+    } else {
+      if (String(id) === String(playerCtx.audioId)) b.classList.add("active");
+      b.addEventListener("click", () => {
+        if (String(id) === String(playerCtx.audioId)) return;
+        playerCtx.audioId = String(id);
+        buildAudioSelector();       // re-destaca o ativo
+        loadEp(playerCtx.idx);      // recarrega no mesmo episódio
+      });
+    }
     box.appendChild(b);
   }
 }
