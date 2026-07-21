@@ -128,8 +128,6 @@ function showView(node) {
 
 function goTitles() {
   state.title = null; state.season = null;
-  setHeader(CONFIG.homeTitle || "PONYFLIX", false);
-  const wrap = el("div", "home");
   const grid = el("div", "grid");
   const cards = [];
   for (const title of Object.keys(DATA)) {
@@ -142,24 +140,20 @@ function goTitles() {
     grid.appendChild(card);
     cards.push(card);
   }
-  if (CONFIG.search) wrap.appendChild(buildSearch(cards));
-  wrap.appendChild(grid);
-  showView(wrap);
+  setHeader(CONFIG.homeTitle || "PONYFLIX", false, CONFIG.search);
+  if (CONFIG.search) setupHeaderSearch(cards);
+  showView(grid);
 }
 
-// Barra de busca que filtra os cards pelo nome (usa slug: ignora acento/pontuação).
-function buildSearch(cards) {
-  const box = el("div", "search");
-  const input = el("input", "search-input");
-  input.type = "search";
-  input.placeholder = "Buscar anime…";
-  input.setAttribute("aria-label", "Buscar anime");
-  input.addEventListener("input", () => {
+// Liga o campo de busca do header pra filtrar os cards (slug: ignora acento/pontuação).
+function setupHeaderSearch(cards) {
+  const input = $("#headerSearch");
+  if (!input) return;
+  input.value = "";
+  input.oninput = () => {
     const q = slug(input.value);
     for (const c of cards) c.style.display = (!q || c.dataset.q.includes(q)) ? "" : "none";
-  });
-  box.appendChild(input);
-  return box;
+  };
 }
 
 function goSeasons(title) {
@@ -349,9 +343,14 @@ async function castLoadCurrent() {
 }
 
 // ── Header / navegação ─────────────────────────────────
-function setHeader(text, showBack) {
+function setHeader(text, showBack, showSearch) {
   $("#headerTitle").textContent = text;
   $("#backBtn").classList.toggle("hidden", !showBack);
+  const hs = $("#headerSearch");
+  if (hs) {
+    hs.classList.toggle("hidden", !showSearch);
+    $("#headerTitle").classList.toggle("hidden", !!showSearch);
+  }
 }
 function goBack() {
   if (state.season !== null) goSeasons(state.title);
