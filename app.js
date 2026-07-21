@@ -53,6 +53,7 @@ function seasonCover(season) {
 const SITE = "https://serv01.meusdoramas.club";
 const TMDB_KEY = window.TMDB_KEY || CONFIG.tmdbKey || "";  // chave grátis (read-only)
 const dynCatalog = {};   // títulos carregados sob demanda (busca/favoritos)
+const dynAudios = {};    // { nome: { Legendado: id, Dublado: id } } dos dinâmicos
 
 function seasonsOf(title) { return dynCatalog[title] || DATA[title]; }
 function fetchJson(url) {
@@ -74,6 +75,7 @@ function buildSeasons(d) {
 
 // Abre um título: usa o que já existe, ou carrega os episódios sob demanda.
 async function openTitle(item) {
+  if (item.audios) dynAudios[item.name] = item.audios;   // dub/leg do dinâmico
   if (seasonsOf(item.name)) return goSeasons(item.name);
   if (!item.post_id) return;
   try {
@@ -221,7 +223,7 @@ function addStar(card, item, rerenderOnRemove) {
   upd();
   star.addEventListener("click", (e) => {
     e.stopPropagation();
-    toggleFav({ name: item.name, tmdb: item.tmdb, post_id: item.post_id, poster: item.poster });
+    toggleFav({ name: item.name, tmdb: item.tmdb, post_id: item.post_id, poster: item.poster, audios: item.audios });
     upd();
   });
   card.appendChild(star);
@@ -281,7 +283,25 @@ async function runSearch(q) {
       const filtered = items.filter((_, i) => flags[i] === want);
       items = flags.every((f) => f === null) ? items : filtered;  // tudo falhou → não esconde
     }
-    showView(items.length ? buildTitleGrid(items) : msgEl("Nada encontrado."));
+    // Agrupa Legendado + Dublado do mesmo título (dub id = id base + "1").
+    const groups = {};
+    for (const it of items) {
+      const isDub = /dublado/i.test(it.rawtitle);
+      const base = isDub ? it.tmdb.slice(0, -1) : it.tmdb;
+      const g = groups[base] || (groups[base] = { leg: null, dub: null });
+      if (isDub) g.dub = it; else g.leg = it;
+    }
+    const grouped = Object.values(groups).map((g) => {
+      const p = g.leg || g.dub;   // card usa o Legendado quando existir
+      const audios = {};
+      if (g.leg) audios.Legendado = g.leg.tmdb;
+      if (g.dub) audios.Dublado = g.dub.tmdb;
+      return {
+        name: cleanName(p.rawtitle).replace(/\s*dublado\s*$/i, ""),
+        tmdb: p.tmdb, post_id: p.post_id, poster: p.poster, audios,
+      };
+    });
+    showView(grouped.length ? buildTitleGrid(grouped) : msgEl("Nada encontrado."));
   } catch (e) {
     console.error("[busca]", e);
     showView(msgEl("Erro na busca. Tente de novo."));
@@ -334,7 +354,7 @@ function goEpisodes(title, season) {
 
 // ── Player ─────────────────────────────────────────────
 function openPlayer(title, season, eps, idx) {
-  const audios = (window.PONYFLIX_AUDIOS && window.PONYFLIX_AUDIOS[title]) || null;
+  const audios = (window.PONYFLIX_AUDIOS && window.PONYFLIX_AUDIOS[title]) || dynAudios[title] || null;
   playerCtx = { title, season, eps, idx, audios, audioId: null };
   // áudio padrão = o id que já está na URL do episódio (o base/legendado)
   const m = eps[0] && eps[0][1].match(/\/video\/(\d+)\//);
@@ -355,23 +375,17 @@ function epUrl(idx) {
 function buildAudioSelector() {
   const box = $("#audioSel"); box.innerHTML = "";
   const audios = playerCtx.audios;
-  if (!audios) return;   // sem info de áudio (MLP, séries sem dub) → não mostra
-  // Sempre Legendado + Dublado; Dublado desabilitado se não existir.
-  for (const label of ["Legendado", "Dublado"]) {
-    const id = audios[label];
+  if (!audios || Object.keys(audios).length < 2) return;   // só mostra se houver dub
+  for (const [label, id] of Object.entries(audios)) {
     const b = el("button", "audio-btn");
     b.textContent = label;
-    if (!id) {
-      b.disabled = true;   // ex.: sem dublado
-    } else {
-      if (String(id) === String(playerCtx.audioId)) b.classList.add("active");
-      b.addEventListener("click", () => {
-        if (String(id) === String(playerCtx.audioId)) return;
-        playerCtx.audioId = String(id);
-        buildAudioSelector();       // re-destaca o ativo
-        loadEp(playerCtx.idx);      // recarrega no mesmo episódio
-      });
-    }
+    if (String(id) === String(playerCtx.audioId)) b.classList.add("active");
+    b.addEventListener("click", () => {
+      if (String(id) === String(playerCtx.audioId)) return;
+      playerCtx.audioId = String(id);
+      buildAudioSelector();       // re-destaca o ativo
+      loadEp(playerCtx.idx);      // recarrega no mesmo episódio
+    });
     box.appendChild(b);
   }
 }

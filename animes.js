@@ -1,8 +1,7 @@
 /*
  * Índice de animes (página separada do MLP).
  *   PONYFLIX_DATA:   "Anime": { "Temporada 1": { "Episódio 1": "URL" } }
- *   PONYFLIX_AUDIOS: "Anime": { "Legendado": id, "Dublado": id }
- *     Legendado sempre; Dublado só quando existe (senão o botão fica desabilitado).
+ *   PONYFLIX_AUDIOS: "Anime": { "Legendado": id, "Dublado": id }  (só quando há dub)
  */
 window.PONYFLIX_DATA = {
   "Spy x Family": {
@@ -649,9 +648,6 @@ window.PONYFLIX_AUDIOS = {
     "Legendado": 120089,
     "Dublado": 1200891
   },
-  "JoJo's Bizarre Adventure": {
-    "Legendado": 45790
-  },
   "Dr. Stone": {
     "Legendado": 86031,
     "Dublado": 860311
@@ -659,9 +655,6 @@ window.PONYFLIX_AUDIOS = {
   "Solo Leveling": {
     "Legendado": 127532,
     "Dublado": 1275321
-  },
-  "Yondemasu yo, Azazel-san": {
-    "Legendado": 49294
   },
   "Shingeki no Kyojin": {
     "Legendado": 1429,
