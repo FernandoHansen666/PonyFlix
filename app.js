@@ -508,6 +508,17 @@ function goBack() {
   else if (state.title !== null) goTitles();
 }
 
+// Botão VOLTAR do controle no app Android (WebView). Retorna false = já na home,
+// então o app nativo fecha. Qualquer outra coisa navega e retorna true.
+window.__ponyBack = function () {
+  if (!$("#player").classList.contains("hidden")) { closePlayer(); return true; }
+  if (state.season !== null) { goSeasons(state.title); return true; }
+  if (state.title !== null) { goTitles(); return true; }
+  const hs = $("#headerSearch");
+  if (hs && hs.value) { hs.value = ""; renderHome(); return true; }  // limpa a busca
+  return false;   // home → app pode sair
+};
+
 // ── Boot ───────────────────────────────────────────────
 async function boot() {
   try {
