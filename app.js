@@ -54,7 +54,6 @@ function seasonCover(season) {
 
 // ── Catálogo (padrão do JSON + dinâmico via API) ───────
 const SITE = "https://serv01.meusdoramas.club";
-const TMDB_KEY = window.TMDB_KEY || CONFIG.tmdbKey || "";  // chave grátis (read-only)
 const dynCatalog = {};   // títulos carregados sob demanda (busca/favoritos)
 const dynAudios = {};    // { nome: { Legendado: id, Dublado: id } } dos dinâmicos
 
@@ -179,7 +178,6 @@ function showView(node) {
 
 function goTitles() {
   state.title = null; state.season = null;
-  activeLetter = null;
   setHeader(CONFIG.homeTitle || "PONYFLIX", false, CONFIG.search);
   if (CONFIG.search) setupHeaderSearch();
   renderHome();
@@ -194,15 +192,19 @@ function renderHome() {
   drawHome();
 }
 
-// Desenha a home (alfabeto + grade filtrada pela letra ativa).
+// Desenha a home: alfabeto + (sua lista) OU (busca no catálogo pela letra).
 function drawHome() {
   const wrap = el("div", "home");
   if (CONFIG.search) wrap.appendChild(buildAlphabet());
-  const items = activeLetter
-    ? homeItems.filter((it) => firstLetter(it.name) === activeLetter)
-    : homeItems;
-  wrap.appendChild(buildTitleGrid(items, !loadFavs().length));
+  const body = el("div", "home-body");
+  wrap.appendChild(body);
   showView(wrap);
+  if (activeLetter) {
+    body.appendChild(msgEl("Buscando…"));
+    letterSearch(activeLetter, body);   // busca no site títulos que começam com a letra
+  } else {
+    body.appendChild(buildTitleGrid(homeItems, !loadFavs().length));  // sua lista
+  }
 }
 
 // Primeira letra do título (sem acento); não-letra vira "#".
@@ -211,25 +213,18 @@ function firstLetter(name) {
   return /[a-z]/.test(c) ? c.toUpperCase() : "#";
 }
 
-// Barra A-Z abaixo da busca; letra sem títulos fica desabilitada.
+// Barra A-Z abaixo da busca. Cada letra busca no catálogo do site.
 function buildAlphabet() {
   const bar = el("div", "alpha");
-  const avail = new Set(homeItems.map((it) => firstLetter(it.name)));
   const all = el("button", "alpha-btn alpha-all" + (activeLetter ? "" : " active"));
   all.textContent = "Todos";
   all.addEventListener("click", () => { activeLetter = null; drawHome(); });
   bar.appendChild(all);
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-  if (avail.has("#")) letters.push("#");
-  for (const L of letters) {
+  for (const L of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
     const b = el("button", "alpha-btn");
     b.textContent = L;
-    if (!avail.has(L)) {
-      b.disabled = true;
-    } else {
-      if (activeLetter === L) b.classList.add("active");
-      b.addEventListener("click", () => { activeLetter = activeLetter === L ? null : L; drawHome(); });
-    }
+    if (activeLetter === L) b.classList.add("active");
+    b.addEventListener("click", () => { activeLetter = L; drawHome(); });
     bar.appendChild(b);
   }
   return bar;
@@ -282,74 +277,84 @@ function setupHeaderSearch() {
   let timer;
   input.oninput = () => {
     clearTimeout(timer);
+    activeLetter = null;   // busca por texto zera o filtro de letra
     const q = input.value.trim();
     if (!q) return renderHome();
     timer = setTimeout(() => runSearch(q), 300);
   };
 }
-// Classifica um resultado como anime (Animação + origem Japão) via TMDB.
-// dublado usa id base (id sem o último dígito). Cacheia o resultado.
-// Anime = gênero Animação (id 16). Não exige Japão (inclui donghua etc.).
-const tmdbCache = {};
-async function classifyIsAnime(item) {
-  const k = item.tmdb;
-  if (k in tmdbCache) return tmdbCache[k];
-  const ls = localStorage.getItem("tmdbanim_" + k);
-  if (ls !== null) return (tmdbCache[k] = ls === "1");
-  if (!TMDB_KEY) return null;
-  const dub = /dublado/i.test(item.rawtitle || item.name);
+// Anime? consulta a lista local de ids TMDB (window.ANIME_IDS, do superflixapi).
+// Dublado usa o id base (sem o último dígito). Instantâneo, sem chamada externa.
+let ANIME_SET = null;
+function isAnimeId(item) {
+  if (!ANIME_SET) ANIME_SET = new Set((window.ANIME_IDS || []).map(String));
+  const dub = /dublado/i.test(item.rawtitle || item.name || "");
   const id = dub ? String(item.tmdb).slice(0, -1) : String(item.tmdb);
-  const type = item.is_movie ? "movie" : "tv";
-  try {
-    const d = await fetchJson(`https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_KEY}`);
-    const res = (d.genres || []).some((g) => g.id === 16);
-    tmdbCache[k] = res;
-    localStorage.setItem("tmdbanim_" + k, res ? "1" : "0");
-    return res;
-  } catch (e) { return null; }
+  return ANIME_SET.has(id);
+}
+function matchesCat(item) {
+  if (!CONFIG.cat) return true;
+  return CONFIG.cat === "anime" ? isAnimeId(item) : !isAnimeId(item);
+}
+
+function mapSearchItem(x) {
+  return {
+    name: cleanName(x.title),
+    rawtitle: x.title,
+    tmdb: String(x.tmdb),
+    post_id: x.post_id,
+    is_movie: x.is_movie === "1" || x.is_movie === 1,
+    poster: (x.image_url || "").replace("/w185/", "/w500/"),
+  };
+}
+
+// Agrupa Legendado + Dublado do mesmo título (dub id = id base + "1").
+function groupDubLeg(items) {
+  const groups = {};
+  for (const it of items) {
+    const isDub = /dublado/i.test(it.rawtitle);
+    const base = isDub ? it.tmdb.slice(0, -1) : it.tmdb;
+    const g = groups[base] || (groups[base] = { leg: null, dub: null });
+    if (isDub) g.dub = it; else g.leg = it;
+  }
+  return Object.values(groups).map((g) => {
+    const p = g.leg || g.dub;   // card usa o Legendado quando existir
+    const audios = {};
+    if (g.leg) audios.Legendado = g.leg.tmdb;
+    if (g.dub) audios.Dublado = g.dub.tmdb;
+    return {
+      name: cleanName(p.rawtitle).replace(/\s*dublado\s*$/i, ""),
+      tmdb: p.tmdb, post_id: p.post_id, poster: p.poster, audios,
+    };
+  });
 }
 
 async function runSearch(q) {
   showView(msgEl("Buscando…"));
   try {
     const arr = await fetchJson(`${SITE}/search.php?term=${encodeURIComponent(q)}`);
-    let items = arr.map((x) => ({
-      name: cleanName(x.title),
-      rawtitle: x.title,
-      tmdb: String(x.tmdb),
-      post_id: x.post_id,
-      is_movie: x.is_movie === "1" || x.is_movie === 1,
-      poster: (x.image_url || "").replace("/w185/", "/w500/"),
-    }));
-    // Filtra por categoria (anime / live-action) usando o TMDB, se houver chave.
-    if (CONFIG.cat && TMDB_KEY) {
-      const flags = await Promise.all(items.map(classifyIsAnime));
-      const want = CONFIG.cat === "anime";
-      const filtered = items.filter((_, i) => flags[i] === want);
-      items = flags.every((f) => f === null) ? items : filtered;  // tudo falhou → não esconde
-    }
-    // Agrupa Legendado + Dublado do mesmo título (dub id = id base + "1").
-    const groups = {};
-    for (const it of items) {
-      const isDub = /dublado/i.test(it.rawtitle);
-      const base = isDub ? it.tmdb.slice(0, -1) : it.tmdb;
-      const g = groups[base] || (groups[base] = { leg: null, dub: null });
-      if (isDub) g.dub = it; else g.leg = it;
-    }
-    const grouped = Object.values(groups).map((g) => {
-      const p = g.leg || g.dub;   // card usa o Legendado quando existir
-      const audios = {};
-      if (g.leg) audios.Legendado = g.leg.tmdb;
-      if (g.dub) audios.Dublado = g.dub.tmdb;
-      return {
-        name: cleanName(p.rawtitle).replace(/\s*dublado\s*$/i, ""),
-        tmdb: p.tmdb, post_id: p.post_id, poster: p.poster, audios,
-      };
-    });
+    const grouped = groupDubLeg(arr.map(mapSearchItem).filter(matchesCat));
     showView(grouped.length ? buildTitleGrid(grouped) : msgEl("Nada encontrado."));
   } catch (e) {
     console.error("[busca]", e);
     showView(msgEl("Erro na busca. Tente de novo."));
+  }
+}
+
+// Busca no catálogo os títulos que COMEÇAM com a letra (+ filtro de categoria).
+async function letterSearch(letter, container) {
+  try {
+    const arr = await fetchJson(`${SITE}/search.php?term=${letter.toLowerCase()}`);
+    const items = arr.map(mapSearchItem)
+      .filter((it) => firstLetter(it.name) === letter)
+      .filter(matchesCat);
+    const grouped = groupDubLeg(items);
+    container.innerHTML = "";
+    container.appendChild(grouped.length ? buildTitleGrid(grouped) : msgEl("Nada encontrado."));
+  } catch (e) {
+    console.error("[letra]", e);
+    container.innerHTML = "";
+    container.appendChild(msgEl("Erro na busca. Tente de novo."));
   }
 }
 
