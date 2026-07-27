@@ -220,7 +220,7 @@ function buildAlphabet() {
   all.textContent = "Todos";
   all.addEventListener("click", () => { activeLetter = null; drawHome(); });
   bar.appendChild(all);
-  for (const L of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+  for (const L of "ABCDEFGHIJKLMNOPQRSTUVWXYZ#") {
     const b = el("button", "alpha-btn");
     b.textContent = L;
     if (activeLetter === L) b.classList.add("active");
@@ -342,9 +342,22 @@ async function runSearch(q) {
 }
 
 // Busca no catálogo os títulos que COMEÇAM com a letra (+ filtro de categoria).
+// "#" = começa com número/símbolo: consulta os dígitos 0-9 e junta.
 async function letterSearch(letter, container) {
   try {
-    const arr = await fetchJson(`${SITE}/search.php?term=${letter.toLowerCase()}`);
+    let arr;
+    if (letter === "#") {
+      const parts = await Promise.all(
+        "0123456789".split("").map((t) => fetchJson(`${SITE}/search.php?term=${t}`).catch(() => []))
+      );
+      const seen = new Set();
+      arr = [];
+      for (const part of parts) for (const x of part) {
+        if (!seen.has(x.tmdb)) { seen.add(x.tmdb); arr.push(x); }
+      }
+    } else {
+      arr = await fetchJson(`${SITE}/search.php?term=${letter.toLowerCase()}`);
+    }
     const items = arr.map(mapSearchItem)
       .filter((it) => firstLetter(it.name) === letter)
       .filter(matchesCat);
